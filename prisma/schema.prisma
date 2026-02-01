@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Question {
+  id           String   @id @default(cuid())
+  prompt       String
+  choices      String   // JSON array of 4 choices
+  correctIndex Int      // 0-3
+  explanation  String
+  session      String   // "Session 1", "Session 2", etc.
+  topic        String
+  tags         String   // JSON array of tags
+  farRefs      String   // JSON array of FAR references
+  difficulty   Int      // 1-5
+  source       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  progress Progress?
+  attempts Attempt[]
+
+  @@index([session])
+  @@index([topic])
+}
+
+model Progress {
+  id             String    @id @default(cuid())
+  questionId     String    @unique
+  question       Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  proficiency    Float     @default(0.2) // 0.0-1.0, start 0.20
+  correctCount   Int       @default(0)
+  incorrectCount Int       @default(0)
+  lastAnsweredAt DateTime?
+  nextDueAt      DateTime?
+  isBookmarked   Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([nextDueAt])
+  @@index([proficiency])
+  @@index([isBookmarked])
+}
+
+model Attempt {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedIndex Int
+  wasCorrect  Boolean
+  mode        String   // "learn", "review", "exam", "topic", "weak-area"
+  session     String
+  topic       String
+  createdAt   DateTime @default(now())
+
+  @@index([questionId])
+  @@index([topic])
+  @@index([mode])
+}
+
+model Resource {
+  id       String @id @default(cuid())
+  title    String
+  url      String
+  category String
+  createdAt DateTime @default(now())
+}
