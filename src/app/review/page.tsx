@@ -1,72 +1,63 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { QuestionCard } from "@/components/QuestionCard";
-
-interface Question {
-  id: string;
-  prompt: string;
-  choices: string[];
-  correctIndex: number;
-  explanation: string;
-  session: string;
-  topic: string;
-}
+import {
+  fetchQuestions,
+  buildReviewQueue,
+  recordAnswer,
+  type Question,
+} from "@/lib/questions";
+import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 export default function ReviewPage() {
   const [shuffle] = useState(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("alwaysShuffle") !== "false";
   });
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["review", shuffle],
-    queryFn: () =>
-      fetch(`/api/review?shuffle=${shuffle}`).then((r) => r.json()),
-  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (data && Array.isArray(data)) setQueue(data);
-  }, [data]);
+    fetchQuestions().then((q) => {
+      setQuestions(q);
+      setQueue(buildReviewQueue(q, shuffle));
+    }).finally(() => setLoading(false));
+  }, [shuffle]);
+
+  useEffect(() => {
+    setBookmarked(new Set(getBookmarks()));
+  }, []);
 
   const current = queue[index];
 
-  const handleAnswer = useCallback(async (questionId: string, selectedIndex: number) => {
-    await fetch("/api/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId,
-        selectedIndex,
-        mode: "review",
-      }),
-    });
-  }, []);
+  const handleAnswer = useCallback(
+    async (questionId: string, selectedIndex: number) => {
+      const q = queue.find((x) => x.id === questionId);
+      if (!q) return;
+      recordAnswer(questionId, q.correctIndex, selectedIndex, "review", q.session, q.topic);
+    },
+    [queue]
+  );
 
   const handleNext = useCallback(() => {
     setIndex((i) => Math.min(i + 1, queue.length - 1));
   }, [queue.length]);
 
-  const handleBookmark = useCallback(async (questionId: string) => {
-    const res = await fetch("/api/bookmark", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId }),
-    });
-    const d = await res.json();
+  const handleBookmark = useCallback((questionId: string) => {
+    const isNow = toggleBookmark(questionId);
     setBookmarked((prev) => {
       const next = new Set(prev);
-      if (d.isBookmarked) next.add(questionId);
+      if (isNow) next.add(questionId);
       else next.delete(questionId);
       return next;
     });
   }, []);
 
-  if (isLoading) return <div className="text-center py-12">Loading...</div>;
+  if (loading) return <div className="text-center py-12">Loading...</div>;
   if (!queue.length)
     return (
       <div className="text-center py-12">

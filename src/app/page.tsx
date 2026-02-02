@@ -1,13 +1,25 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { fetchQuestions, computeStats } from "@/lib/questions";
 
 export default function HomePage() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ["stats"],
-    queryFn: () => fetch("/api/stats").then((r) => r.json()),
-  });
+  const [stats, setStats] = useState<{
+    totalQuestions: number;
+    masteredCount: number;
+    accuracy: number;
+    totalAttempts: number;
+    weakTopics?: { topic: string; accuracy: number }[];
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQuestions()
+      .then((questions) => setStats(computeStats(questions)))
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -68,7 +80,7 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="text-slate-500">Loading stats...</div>
       ) : stats ? (
         <div className="bg-white rounded-lg shadow p-6">
@@ -95,11 +107,11 @@ export default function HomePage() {
               <p className="text-2xl font-bold">{stats.totalAttempts}</p>
             </div>
           </div>
-          {stats.weakTopics?.length > 0 && (
+          {stats.weakTopics && stats.weakTopics.length > 0 && (
             <div className="mt-4">
               <p className="text-slate-500 text-sm mb-2">Weak Topics</p>
               <ul className="list-disc list-inside">
-                {stats.weakTopics.map((t: { topic: string; accuracy: number }) => (
+                {stats.weakTopics.map((t) => (
                   <li key={t.topic}>
                     {t.topic}: {Math.round(t.accuracy * 100)}%
                   </li>

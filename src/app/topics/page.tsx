@@ -1,18 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { QuestionCard } from "@/components/QuestionCard";
-
-interface Question {
-  id: string;
-  prompt: string;
-  choices: string[];
-  correctIndex: number;
-  explanation: string;
-  session: string;
-  topic: string;
-}
+import {
+  fetchQuestions,
+  buildTopicsQueue,
+  recordAnswer,
+  type Question,
+} from "@/lib/questions";
+import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 const SESSIONS = ["Session 1", "Session 2", "Session 3", "Session 4"];
 const TOPICS = [
@@ -31,58 +27,48 @@ export default function TopicsPage() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("alwaysShuffle") !== "false";
   });
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [searched, setSearched] = useState(false);
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
-
-  const params = new URLSearchParams();
-  if (session) params.set("session", session);
-  if (topic) params.set("topic", topic);
-  if (difficulty) params.set("difficulty", difficulty);
-  if (search.trim()) params.set("search", search.trim());
-  params.set("shuffle", String(shuffle));
-
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["topics", params.toString()],
-    queryFn: () => fetch(`/api/topics?${params}`).then((r) => r.json()),
-    enabled: searched,
-  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (data && Array.isArray(data)) setQueue(data);
-  }, [data]);
+    fetchQuestions().then(setQuestions).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    setBookmarked(new Set(getBookmarks()));
+  }, []);
 
   const current = queue[index];
 
-  const doSearch = () => setSearched(true);
+  const doSearch = useCallback(() => {
+    const q = buildTopicsQueue(questions, session, topic, difficulty, search, shuffle);
+    setQueue(q);
+    setIndex(0);
+    setSearched(true);
+  }, [questions, session, topic, difficulty, search, shuffle]);
 
-  const handleAnswer = useCallback(async (questionId: string, selectedIndex: number) => {
-    await fetch("/api/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId,
-        selectedIndex,
-        mode: "topic",
-      }),
-    });
-  }, []);
+  const handleAnswer = useCallback(
+    async (questionId: string, selectedIndex: number) => {
+      const q = queue.find((x) => x.id === questionId);
+      if (!q) return;
+      recordAnswer(questionId, q.correctIndex, selectedIndex, "topic", q.session, q.topic);
+    },
+    [queue]
+  );
 
   const handleNext = useCallback(() => {
     setIndex((i) => Math.min(i + 1, queue.length - 1));
   }, [queue.length]);
 
-  const handleBookmark = useCallback(async (questionId: string) => {
-    const res = await fetch("/api/bookmark", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId }),
-    });
-    const d = await res.json();
+  const handleBookmark = useCallback((questionId: string) => {
+    const isNow = toggleBookmark(questionId);
     setBookmarked((prev) => {
       const next = new Set(prev);
-      if (d.isBookmarked) next.add(questionId);
+      if (isNow) next.add(questionId);
       else next.delete(questionId);
       return next;
     });
@@ -143,7 +129,8 @@ export default function TopicsPage() {
         </div>
         <button
           onClick={doSearch}
-          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          disabled={loading}
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
         >
           Search
         </button>
@@ -151,7 +138,7 @@ export default function TopicsPage() {
 
       {searched && (
         <>
-          {isLoading ? (
+          {loading ? (
             <div>Loading...</div>
           ) : !queue.length ? (
             <div>No questions found.</div>

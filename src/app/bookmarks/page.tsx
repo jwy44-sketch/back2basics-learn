@@ -1,65 +1,65 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { QuestionCard } from "@/components/QuestionCard";
-
-interface Question {
-  id: string;
-  prompt: string;
-  choices: string[];
-  correctIndex: number;
-  explanation: string;
-  session: string;
-  topic: string;
-}
+import {
+  fetchQuestions,
+  buildBookmarksQueue,
+  recordAnswer,
+  type Question,
+} from "@/lib/questions";
+import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 export default function BookmarksPage() {
   const [shuffle] = useState(() => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("alwaysShuffle") !== "false";
   });
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["bookmarks", shuffle],
-    queryFn: () =>
-      fetch(`/api/bookmarks?shuffle=${shuffle}`).then((r) => r.json()),
-  });
+  const refreshQueue = useCallback(() => {
+    const q = buildBookmarksQueue(questions, shuffle);
+    setQueue(q);
+    setIndex(0);
+  }, [questions, shuffle]);
 
   useEffect(() => {
-    if (data && Array.isArray(data)) setQueue(data);
-  }, [data]);
+    fetchQuestions().then((q) => {
+      setQuestions(q);
+      setQueue(buildBookmarksQueue(q, shuffle));
+    }).finally(() => setLoading(false));
+  }, [shuffle]);
+
+  useEffect(() => {
+    const check = () => refreshQueue();
+    window.addEventListener("storage", check);
+    return () => window.removeEventListener("storage", check);
+  }, [refreshQueue]);
 
   const current = queue[index];
 
-  const handleAnswer = useCallback(async (questionId: string, selectedIndex: number) => {
-    await fetch("/api/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId,
-        selectedIndex,
-        mode: "topic",
-      }),
-    });
-  }, []);
+  const handleAnswer = useCallback(
+    async (questionId: string, selectedIndex: number) => {
+      const q = queue.find((x) => x.id === questionId);
+      if (!q) return;
+      recordAnswer(questionId, q.correctIndex, selectedIndex, "topic", q.session, q.topic);
+    },
+    [queue]
+  );
 
   const handleNext = useCallback(() => {
     setIndex((i) => Math.min(i + 1, queue.length - 1));
   }, [queue.length]);
 
-  const handleBookmark = useCallback(async (questionId: string) => {
-    await fetch("/api/bookmark", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId }),
-    });
-    refetch();
-  }, [refetch]);
+  const handleBookmark = useCallback((questionId: string) => {
+    toggleBookmark(questionId);
+    refreshQueue();
+  }, [refreshQueue]);
 
-  if (isLoading) return <div className="text-center py-12">Loading...</div>;
+  if (loading) return <div className="text-center py-12">Loading...</div>;
   if (!queue.length)
     return (
       <div className="text-center py-12">

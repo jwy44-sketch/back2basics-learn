@@ -2,60 +2,41 @@
 
 A study app for FAR and contracting with adaptive spaced repetition, weak-area targeting, and exam sprint modes.
 
+## Share Mode: progress is stored in your browser only.
+
+In Share Mode, questions and resources are the same for everyone. Each person's progress—proficiency, bookmarks, wrong answers, and attempts—is stored locally in their browser (localStorage). No database is required. No login. Safe for multi-user shared devices: each browser profile has its own progress.
+
 ## Tech Stack
 
 - **Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS
-- **Database:** SQLite via Prisma
-- **State:** React Query (TanStack Query)
+- **Data:** Static JSON (`/public/questions.json`, `/public/resources.json`)
+- **Progress:** localStorage (b2b_progress_v1, b2b_bookmarks_v1, b2b_attempts_v1)
 - **Future:** Vercel (web) + Capacitor (iOS)
 
-## Windows Setup
+## Quick Start (Share Mode)
 
-### Prerequisites
-
-1. **Install Node.js LTS** (20.x recommended)
-   - Download from https://nodejs.org/
-   - Choose the LTS version
-   - Run the installer and follow prompts
-   - Verify: open PowerShell and run `node -v` and `npm -v`
-
-### Installation
-
-1. **Open PowerShell** in the project folder (or `cd` to it)
-
-2. **Install dependencies**
+1. **Install dependencies**
    ```powershell
    npm install
    ```
 
-3. **Run Prisma migration**
-   ```powershell
-   npx prisma migrate dev
-   ```
-   - This creates the SQLite database and schema
-
-4. **Seed the database**
-   ```powershell
-   npm run db:seed
-   ```
-   - Loads 220+ questions from `data/questions.seed.json` and `data/questions-extra.json`
-   - Seeds resources with DAU links
-
-5. **Start the dev server**
+2. **Start the dev server**
    ```powershell
    npm run dev
    ```
 
-6. **Open in browser**
-   - Go to http://localhost:3000
+3. **Open in browser** — Go to http://localhost:3000
 
-### Verify Seed Count
+**No Prisma migrate or seed required.** Questions and resources load from `/public/*.json`.
 
-```powershell
-npm run verify:seed
-```
+## Windows Setup (Legacy / DB Mode)
 
-This checks that `data/questions.seed.json` has at least 200 valid questions.
+If you want to use the database (e.g., for import/seed workflows):
+
+1. Copy `.env.example` to `.env` and ensure `DATABASE_URL` is set.
+2. Run `npx prisma migrate dev` to create the database.
+3. Run `npm run db:seed` to seed questions and resources.
+4. Run `npm run dev`.
 
 ## Features
 
@@ -66,7 +47,7 @@ This checks that `data/questions.seed.json` has at least 200 valid questions.
 - **Bookmarks:** Star questions for later review
 - **Topics:** Filter by session, topic, difficulty; search prompt text
 - **Resources:** DAU links (FAR Better View, Skills and Roles, etc.)
-- **Import/Export:** Admin JSON import/export in Settings
+- **Settings:** Shuffle toggle, Export JSON, Reset My Progress (clears localStorage)
 
 ## Spaced Repetition
 
@@ -93,11 +74,19 @@ This checks that `data/questions.seed.json` has at least 200 valid questions.
 
 - `npm run dev` — Start dev server
 - `npm run build` — Production build
-- `npm run db:migrate` — Run Prisma migrations
-- `npm run db:seed` — Seed database
-- `npm run db:setup` — Migrate + seed
+- `npm run db:migrate` — Run Prisma migrations (optional)
+- `npm run db:seed` — Seed database (optional)
+- `npm run db:setup` — Migrate + seed (optional)
 - `npm run generate:seed` — Regenerate `questions.seed.json`
 - `npm run verify:seed` — Verify seed has ≥200 questions
+
+## Regenerating Public JSON
+
+To update `/public/questions.json` from the seed files:
+
+```powershell
+node scripts/buildPublicJson.js
+```
 
 ## iOS / Capacitor (Future)
 
@@ -110,4 +99,4 @@ To package as iOS app:
 5. Sync: `npx cap sync`
 6. Open in Xcode: `npx cap open ios`
 
-The app works offline once seeded; no external APIs required.
+The app works offline; no external APIs required.

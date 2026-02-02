@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { fetchResources } from "@/lib/questions";
 
 interface Resource {
   id: string;
@@ -10,12 +11,14 @@ interface Resource {
 }
 
 export default function ResourcesPage() {
-  const { data: resources, isLoading } = useQuery({
-    queryKey: ["resources"],
-    queryFn: () => fetch("/api/resources").then((r) => r.json()),
-  });
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (isLoading) return <div className="py-12">Loading...</div>;
+  useEffect(() => {
+    fetchResources().then(setResources).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-12">Loading...</div>;
 
   return (
     <div className="space-y-6">
@@ -24,7 +27,7 @@ export default function ResourcesPage() {
         DAU and FAR reference materials for study.
       </p>
       <ul className="space-y-3">
-        {(resources as Resource[] || []).map((r) => (
+        {(resources || []).map((r) => (
           <li key={r.id} className="bg-white rounded-lg shadow p-4">
             <a
               href={r.url}

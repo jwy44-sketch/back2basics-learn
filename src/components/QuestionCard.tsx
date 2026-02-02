@@ -12,7 +12,7 @@ interface QuestionCardProps {
   topic: string;
   onAnswer: (questionId: string, selectedIndex: number) => Promise<void>;
   onNext: () => void;
-  onBookmark?: (questionId: string) => void;
+  onBookmark?: (questionId: string) => void | Promise<void>;
   isBookmarked?: boolean;
   mode?: string;
   showBookmark?: boolean;

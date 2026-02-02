@@ -2,18 +2,15 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import { QuestionCard } from "@/components/QuestionCard";
-
-interface Question {
-  id: string;
-  prompt: string;
-  choices: string[];
-  correctIndex: number;
-  explanation: string;
-  session: string;
-  topic: string;
-}
+import {
+  fetchQuestions,
+  buildLearnQueue,
+  buildWeakAreasQueue,
+  recordAnswer,
+  type Question,
+} from "@/lib/questions";
+import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 function LearnContent() {
   const searchParams = useSearchParams();
@@ -25,58 +22,67 @@ function LearnContent() {
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
-
-  const apiUrl = weakMode ? "/api/weak-areas" : "/api/learn";
-  const { data, isLoading } = useQuery({
-    queryKey: [apiUrl, shuffle],
-    queryFn: () =>
-      fetch(`${apiUrl}?shuffle=${shuffle}`).then((r) => r.json()),
-  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (data && Array.isArray(data)) setQueue(data);
-  }, [data]);
+    let cancelled = false;
+    async function load() {
+      try {
+        const questions = await fetchQuestions();
+        if (cancelled) return;
+        const q = weakMode
+          ? buildWeakAreasQueue(questions, shuffle)
+          : buildLearnQueue(questions, shuffle);
+        setQueue(q);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [weakMode, shuffle]);
+
+  useEffect(() => {
+    setBookmarked(new Set(getBookmarks()));
+  }, []);
 
   const current = queue[index];
 
   const handleAnswer = useCallback(
     async (questionId: string, selectedIndex: number) => {
-      await fetch("/api/answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionId,
-          selectedIndex,
-          mode: weakMode ? "weak-area" : "learn",
-        }),
-      });
+      const q = queue.find((x) => x.id === questionId);
+      if (!q) return;
+      recordAnswer(questionId, q.correctIndex, selectedIndex, weakMode ? "weak-area" : "learn", q.session, q.topic);
     },
-    [weakMode]
+    [queue, weakMode]
   );
 
   const handleNext = useCallback(() => {
     setIndex((i) => Math.min(i + 1, queue.length - 1));
   }, [queue.length]);
 
-  const handleBookmark = useCallback(async (questionId: string) => {
-    const res = await fetch("/api/bookmark", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId }),
-    });
-    const data = await res.json();
+  const handleBookmark = useCallback((questionId: string) => {
+    const isNow = toggleBookmark(questionId);
     setBookmarked((prev) => {
       const next = new Set(prev);
-      if (data.isBookmarked) next.add(questionId);
+      if (isNow) next.add(questionId);
       else next.delete(questionId);
       return next;
     });
   }, []);
 
-  if (isLoading || !queue.length) {
+  if (loading) {
+    return (
+      <div className="text-center py-12">Loading...</div>
+    );
+  }
+
+  if (!queue.length) {
     return (
       <div className="text-center py-12">
-        {isLoading ? "Loading..." : "No questions available. Run db:seed first."}
+        No questions available. Check that /questions.json exists.
       </div>
     );
   }

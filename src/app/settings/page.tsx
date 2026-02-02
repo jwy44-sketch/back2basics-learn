@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { resetProgress } from "@/lib/storage";
 
 export default function SettingsPage() {
   const [alwaysShuffle, setAlwaysShuffle] = useState(true);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importResult, setImportResult] = useState<string | null>(null);
+  const [resetDone, setResetDone] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -19,31 +19,16 @@ export default function SettingsPage() {
     localStorage.setItem("alwaysShuffle", String(next));
   };
 
+  const handleResetProgress = () => {
+    if (!confirm("Reset all progress? This will clear bookmarks, attempts, and proficiency. This cannot be undone.")) return;
+    resetProgress();
+    setResetDone(true);
+    setTimeout(() => setResetDone(false), 3000);
+    window.location.href = "/";
+  };
+
   const handleExport = () => {
-    window.open("/api/export", "_blank");
-  };
-
-  const handleImport = async () => {
-    if (!importFile) return;
-    const formData = new FormData();
-    formData.append("file", importFile);
-    const res = await fetch("/api/import", {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setImportResult(`Imported ${data.imported} of ${data.total} questions.`);
-      setImportFile(null);
-    } else {
-      setImportResult(`Error: ${data.error}`);
-    }
-  };
-
-  const handleResetProgress = async () => {
-    if (!confirm("Reset all progress? This cannot be undone.")) return;
-    // We would need an API for this - for now show a message
-    alert("Reset progress: delete prisma/dev.db and run db:setup to reset.");
+    window.open("/questions.json", "_blank");
   };
 
   return (
@@ -67,49 +52,30 @@ export default function SettingsPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h2 className="font-semibold">Import / Export</h2>
+        <h2 className="font-semibold">Export Questions</h2>
         <p className="text-sm text-slate-500">
-          Export questions as JSON. Import to add more questions to the bank.
+          Download the question bank as JSON.
         </p>
-        <div className="flex gap-4">
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-          >
-            Export JSON
-          </button>
-          <div className="flex-1">
-            <input
-              type="file"
-              accept=".json"
-              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              className="text-sm"
-            />
-            <button
-              onClick={handleImport}
-              disabled={!importFile}
-              className="ml-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50"
-            >
-              Import JSON
-            </button>
-          </div>
-        </div>
-        {importResult && (
-          <p className="text-sm text-slate-600">{importResult}</p>
-        )}
+        <button
+          onClick={handleExport}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+        >
+          Export JSON
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h2 className="font-semibold">Reset Progress</h2>
+        <h2 className="font-semibold">Reset My Progress</h2>
         <p className="text-sm text-slate-500">
-          Delete the database and re-seed to start over.
+          Clear all progress, bookmarks, and attempt history. Your progress is stored in your browser only.
         </p>
         <button
           onClick={handleResetProgress}
           className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200"
         >
-          Reset Progress
+          Reset My Progress
         </button>
+        {resetDone && <p className="text-sm text-green-600">Progress reset. Redirecting…</p>}
       </div>
     </div>
   );

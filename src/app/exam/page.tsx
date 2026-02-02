@@ -1,17 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { QuestionCard } from "@/components/QuestionCard";
-
-interface Question {
-  id: string;
-  prompt: string;
-  choices: string[];
-  correctIndex: number;
-  explanation: string;
-  session: string;
-  topic: string;
-}
+import { fetchQuestions, buildExamQueue, recordAnswer, type Question } from "@/lib/questions";
 
 const PRESETS = [
   "All Sessions Mixed",
@@ -27,45 +18,41 @@ export default function ExamPage() {
   const [count, setCount] = useState(25);
   const [preset, setPreset] = useState("All Sessions Mixed");
   const [timerEnabled, setTimerEnabled] = useState(false);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [started, setStarted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQuestions().then(setQuestions).finally(() => setLoading(false));
+  }, []);
 
   const current = queue[index];
 
-  const startExam = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/exam", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count, preset }),
-      });
-      const data = await res.json();
-      setQueue(data);
-      setIndex(0);
-      setStarted(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [count, preset]);
+  const startExam = useCallback(() => {
+    const q = buildExamQueue(questions, count, preset);
+    setQueue(q);
+    setIndex(0);
+    setStarted(true);
+  }, [questions, count, preset]);
 
-  const handleAnswer = useCallback(async (questionId: string, selectedIndex: number) => {
-    await fetch("/api/answer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        questionId,
-        selectedIndex,
-        mode: "exam",
-      }),
-    });
-  }, []);
+  const handleAnswer = useCallback(
+    async (questionId: string, selectedIndex: number) => {
+      const q = queue.find((x) => x.id === questionId);
+      if (!q) return;
+      recordAnswer(questionId, q.correctIndex, selectedIndex, "exam", q.session, q.topic);
+    },
+    [queue]
+  );
 
   const handleNext = useCallback(() => {
     setIndex((i) => Math.min(i + 1, queue.length - 1));
   }, [queue.length]);
+
+  if (loading && !started) {
+    return <div className="text-center py-12">Loading...</div>;
+  }
 
   if (!started) {
     return (
@@ -107,10 +94,10 @@ export default function ExamPage() {
           </div>
           <button
             onClick={startExam}
-            disabled={loading}
+            disabled={!questions.length}
             className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
-            {loading ? "Loading..." : "Start Exam"}
+            Start Exam
           </button>
         </div>
       </div>
@@ -131,7 +118,7 @@ export default function ExamPage() {
     return (
       <div className="text-center py-12">
         <p className="text-xl mb-4">Exam complete!</p>
-        <a href="/" className="text-primary-600 hover:underline">Home</a>
+        <a href="/" className="text-primary-600">Home</a>
       </div>
     );
 
