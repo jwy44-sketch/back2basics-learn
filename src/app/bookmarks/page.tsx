@@ -16,6 +16,10 @@ export default function BookmarksPage() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("alwaysShuffle") !== "false";
   });
+  const [shuffleChoices] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("shuffleChoices") !== "false";
+  });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
@@ -41,8 +45,8 @@ export default function BookmarksPage() {
   }, [refreshQueue]);
 
   const presentedQueue = useMemo(
-    () => queue.map((q) => presentQuestion(q, { shuffleChoices: shuffle })),
-    [queue, shuffle]
+    () => queue.map((q) => presentQuestion(q, { shuffleChoices })),
+    [queue, shuffleChoices]
   );
   const current = presentedQueue[index];
 

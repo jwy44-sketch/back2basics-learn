@@ -5,6 +5,7 @@ import { resetProgress, getFlaggedQuestions, clearFlaggedQuestions } from "@/lib
 
 export default function SettingsPage() {
   const [alwaysShuffle, setAlwaysShuffle] = useState(true);
+  const [shuffleChoices, setShuffleChoices] = useState(true);
   const [resetDone, setResetDone] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [debugAnswers, setDebugAnswers] = useState(false);
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setAlwaysShuffle(localStorage.getItem("alwaysShuffle") !== "false");
+      setShuffleChoices(localStorage.getItem("shuffleChoices") !== "false");
       setDebugAnswers(localStorage.getItem("debugAnswers") === "true");
     }
   }, []);
@@ -28,6 +30,12 @@ export default function SettingsPage() {
     const next = !alwaysShuffle;
     setAlwaysShuffle(next);
     localStorage.setItem("alwaysShuffle", String(next));
+  };
+
+  const toggleShuffleChoices = () => {
+    const next = !shuffleChoices;
+    setShuffleChoices(next);
+    localStorage.setItem("shuffleChoices", String(next));
   };
 
   const handleResetProgress = () => {
@@ -78,10 +86,22 @@ export default function SettingsPage() {
             checked={alwaysShuffle}
             onChange={toggleShuffle}
           />
-          <label htmlFor="shuffle">Always shuffle (default ON)</label>
+          <label htmlFor="shuffle">Always shuffle question order (default ON)</label>
         </div>
         <p className="text-sm text-slate-500">
           Shuffles question order in Learn, Review, Exam, and Topic quiz.
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="shuffle-choices"
+            checked={shuffleChoices}
+            onChange={toggleShuffleChoices}
+          />
+          <label htmlFor="shuffle-choices">Shuffle answer choices (default ON)</label>
+        </div>
+        <p className="text-sm text-slate-500">
+          Randomizes A/B/C/D per question without changing the stored correct answer.
         </p>
       </div>
 

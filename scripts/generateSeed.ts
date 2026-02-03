@@ -56,6 +56,7 @@ const SESSION_TOPICS: Record<string, string[]> = {
 
 const MIN_EXPLANATION_LENGTH = 80;
 const REQUIRED_TERMS = ["because", "so that", "therefore", "this means"];
+const ACQUISITION_GOV = "https://www.acquisition.gov/";
 
 interface SeedQuestion {
   prompt: string;
@@ -82,7 +83,7 @@ function shuffleArray<T>(arr: T[]): T[] {
 function isExplanationValid(explanation: string): boolean {
   if (explanation.length < MIN_EXPLANATION_LENGTH) return false;
   const lower = explanation.toLowerCase();
-  return REQUIRED_TERMS.some((term) => lower.includes(term));
+  return REQUIRED_TERMS.some((term) => lower.includes(term)) && explanation.includes("acquisition.gov");
 }
 
 function buildExplanation(params: {
@@ -94,9 +95,12 @@ function buildExplanation(params: {
 }): string {
   const { topic, session, correctAnswer, farRefs, tags } = params;
   const reference = farRefs.length ? ` Reference: ${farRefs.join(", ")}.` : "";
+  const link = farRefs.length
+    ? `${ACQUISITION_GOV}?search=${encodeURIComponent(farRefs.join(", "))}`
+    : ACQUISITION_GOV;
   const tagCue = tags.length ? ` Key takeaway: ${tags[0]} should guide your selection.` : " Key takeaway: Anchor your choice to the prompt's focus.";
   const commonTrap = ` Common mistake: selecting an option that sounds plausible but does not align with ${topic} expectations.`;
-  return `Because ${correctAnswer.toLowerCase()} aligns with ${topic} expectations in ${session}, it is the best answer.${tagCue}${commonTrap}${reference}`;
+  return `Because ${correctAnswer.toLowerCase()} aligns with ${topic} expectations in ${session}, it is the best answer.${tagCue}${commonTrap}${reference} See ${link} for the FAR reference.`;
 }
 
 function ensureExplanation(explanation: string, params: Parameters<typeof buildExplanation>[0]): string {
@@ -196,7 +200,7 @@ function generateTopicQuestions(
       string,
     ];
     const explanation = ensureExplanation(
-      `Because ${p.correct.toLowerCase()} best reflects the intent of ${topic} practices, it is the correct answer. Key takeaway: prioritize documentation, transparency, and alignment with ${topic}. Common mistake: choosing an option that skips required process steps.`,
+      `Because ${p.correct.toLowerCase()} best reflects the intent of ${topic} practices, it is the correct answer. Key takeaway: prioritize documentation, transparency, and alignment with ${topic}. Common mistake: choosing an option that skips required process steps. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR Part 1")} for FAR guidance.`,
       {
         topic,
         session,
@@ -235,7 +239,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because the FAR sets uniform acquisition policies across executive agencies, it ensures consistency and fairness in federal contracting. Key takeaway: use FAR guidance to align decisions across the acquisition lifecycle.",
+        `Because the FAR sets uniform acquisition policies across executive agencies, it ensures consistency and fairness in federal contracting. Key takeaway: use FAR guidance to align decisions across the acquisition lifecycle. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 1.101")} for the reference.`,
         {
           topic: "Contract Principles",
           session: "Session 1",
@@ -262,7 +266,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because a Contracting Officer is delegated authority to enter into, administer, and terminate contracts on behalf of the Government, that statement is correct. Key takeaway: CO authority is formal and must be exercised within delegation limits.",
+        `Because a Contracting Officer is delegated authority to enter into, administer, and terminate contracts on behalf of the Government, that statement is correct. Key takeaway: CO authority is formal and must be exercised within delegation limits. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 2.101")} for the definition.`,
         {
           topic: "Skills and Roles",
           session: "Session 1",
@@ -289,7 +293,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because the Standards of Conduct are designed to ensure integrity and avoid conflicts of interest, that option is correct. Key takeaway: ethical compliance underpins public trust in government operations.",
+        `Because the Standards of Conduct are designed to ensure integrity and avoid conflicts of interest, that option is correct. Key takeaway: ethical compliance underpins public trust in government operations. See ${ACQUISITION_GOV}?search=${encodeURIComponent("5 CFR Part 2635")} for the guidance.`,
         {
           topic: "Standards of Conduct",
           session: "Session 1",
@@ -316,7 +320,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because a written Justification and Approval must exist before awarding a sole source contract, the pre-award documentation option is correct. Key takeaway: document why full and open competition is not feasible before award.",
+        `Because a written Justification and Approval must exist before awarding a sole source contract, the pre-award documentation option is correct. Key takeaway: document why full and open competition is not feasible before award. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 6.303")} for the requirement.`,
         {
           topic: "Contract Principles",
           session: "Session 2",
@@ -343,7 +347,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because the Source Selection Plan is created before release to define the evaluation approach and criteria, it ensures a fair and consistent evaluation. Key takeaway: set evaluation criteria upfront to support transparency.",
+        `Because the Source Selection Plan is created before release to define the evaluation approach and criteria, it ensures a fair and consistent evaluation. Key takeaway: set evaluation criteria upfront to support transparency. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 15.303")} for details.`,
         {
           topic: "Source Selection",
           session: "Session 2",
@@ -370,7 +374,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because price or cost analysis exists to confirm a fair and reasonable price for the Government, that option is correct. Key takeaway: validate proposed pricing against reasonableness, not just contractor profit.",
+        `Because price or cost analysis exists to confirm a fair and reasonable price for the Government, that option is correct. Key takeaway: validate proposed pricing against reasonableness, not just contractor profit. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 15.404")} for guidance.`,
         {
           topic: "Price/Cost Analysis",
           session: "Session 3",
@@ -396,7 +400,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because the FAR and contract clauses establish formal dispute resolution procedures, following them is the correct response. Key takeaway: disputes must be handled through established FAR processes.",
+        `Because the FAR and contract clauses establish formal dispute resolution procedures, following them is the correct response. Key takeaway: disputes must be handled through established FAR processes. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 33.2")} for the process.`,
         {
           topic: "Disagreements",
           session: "Session 3",
@@ -423,7 +427,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because contract administration requires monitoring performance and ensuring compliance with contract terms, that option is correct. Key takeaway: ongoing oversight and documentation are core administration duties.",
+        `Because contract administration requires monitoring performance and ensuring compliance with contract terms, that option is correct. Key takeaway: ongoing oversight and documentation are core administration duties. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 42.302")} for the responsibilities.`,
         {
           topic: "Administer Contract",
           session: "Session 4",
@@ -450,7 +454,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because any change to scope, price, or terms requires formal documentation, a contract modification is needed. Key takeaway: changes must be captured in writing to maintain contract integrity.",
+        `Because any change to scope, price, or terms requires formal documentation, a contract modification is needed. Key takeaway: changes must be captured in writing to maintain contract integrity. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 43.102")} for the rule.`,
         {
           topic: "Manage Changes",
           session: "Session 4",
@@ -477,7 +481,7 @@ function generateManualQuestions(): SeedQuestion[] {
       ],
       correctIndex: 0,
       explanation: ensureExplanation(
-        "Because contract closeout exists to settle all matters and ensure no outstanding obligations remain, that option is correct. Key takeaway: closeout confirms all responsibilities are complete.",
+        `Because contract closeout exists to settle all matters and ensure no outstanding obligations remain, that option is correct. Key takeaway: closeout confirms all responsibilities are complete. See ${ACQUISITION_GOV}?search=${encodeURIComponent("FAR 4.804")} for closeout guidance.`,
         {
           topic: "Closeout",
           session: "Session 4",

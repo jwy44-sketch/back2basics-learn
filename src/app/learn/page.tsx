@@ -20,6 +20,10 @@ function LearnContent() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("alwaysShuffle") !== "false";
   });
+  const [shuffleChoices] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("shuffleChoices") !== "false";
+  });
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
@@ -50,8 +54,8 @@ function LearnContent() {
   }, []);
 
   const presentedQueue = useMemo(
-    () => queue.map((q) => presentQuestion(q, { shuffleChoices: shuffle })),
-    [queue, shuffle]
+    () => queue.map((q) => presentQuestion(q, { shuffleChoices })),
+    [queue, shuffleChoices]
   );
   const current = presentedQueue[index];
 

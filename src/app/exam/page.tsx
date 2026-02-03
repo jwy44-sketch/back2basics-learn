@@ -21,7 +21,7 @@ export default function ExamPage() {
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [shuffleChoices] = useState(() => {
     if (typeof window === "undefined") return true;
-    return localStorage.getItem("alwaysShuffle") !== "false";
+    return localStorage.getItem("shuffleChoices") !== "false";
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
