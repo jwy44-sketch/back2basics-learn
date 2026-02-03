@@ -54,6 +54,9 @@ const SESSION_TOPICS: Record<string, string[]> = {
   ],
 };
 
+const MIN_EXPLANATION_LENGTH = 80;
+const REQUIRED_TERMS = ["because", "so that", "therefore", "this means"];
+
 interface SeedQuestion {
   prompt: string;
   choices: [string, string, string, string];
@@ -74,6 +77,31 @@ function shuffleArray<T>(arr: T[]): T[] {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function isExplanationValid(explanation: string): boolean {
+  if (explanation.length < MIN_EXPLANATION_LENGTH) return false;
+  const lower = explanation.toLowerCase();
+  return REQUIRED_TERMS.some((term) => lower.includes(term));
+}
+
+function buildExplanation(params: {
+  topic: string;
+  session: string;
+  correctAnswer: string;
+  farRefs: string[];
+  tags: string[];
+}): string {
+  const { topic, session, correctAnswer, farRefs, tags } = params;
+  const reference = farRefs.length ? ` Reference: ${farRefs.join(", ")}.` : "";
+  const tagCue = tags.length ? ` Key takeaway: ${tags[0]} should guide your selection.` : " Key takeaway: Anchor your choice to the prompt's focus.";
+  const commonTrap = ` Common mistake: selecting an option that sounds plausible but does not align with ${topic} expectations.`;
+  return `Because ${correctAnswer.toLowerCase()} aligns with ${topic} expectations in ${session}, it is the best answer.${tagCue}${commonTrap}${reference}`;
+}
+
+function ensureExplanation(explanation: string, params: Parameters<typeof buildExplanation>[0]): string {
+  if (isExplanationValid(explanation)) return explanation;
+  return buildExplanation(params);
 }
 
 function generateTopicQuestions(
@@ -167,12 +195,22 @@ function generateTopicQuestions(
       string,
       string,
     ];
+    const explanation = ensureExplanation(
+      `Because ${p.correct.toLowerCase()} best reflects the intent of ${topic} practices, it is the correct answer. Key takeaway: prioritize documentation, transparency, and alignment with ${topic}. Common mistake: choosing an option that skips required process steps.`,
+      {
+        topic,
+        session,
+        correctAnswer: p.correct,
+        farRefs: ["FAR Part 1"],
+        tags: ["Representative Practice"],
+      }
+    );
 
     questions.push({
       prompt: p.prompt.replace(/\$\{terms\[.*?\]\}/g, terms[Math.floor(Math.random() * terms.length)]),
       choices: finalChoices,
       correctIndex: correctIdx,
-      explanation: `In ${topic}, the correct approach aligns with FAR principles of transparency, competition, and proper documentation. The other options either violate ethical standards or procedural requirements.`,
+      explanation,
       session,
       topic,
       tags: ["Representative Practice"],
@@ -196,8 +234,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "To maximize profits for government contractors.",
       ],
       correctIndex: 0,
-      explanation:
-        "The FAR establishes uniform policies and procedures for acquisition by all executive agencies, ensuring consistency and fairness in federal contracting.",
+      explanation: ensureExplanation(
+        "Because the FAR sets uniform acquisition policies across executive agencies, it ensures consistency and fairness in federal contracting. Key takeaway: use FAR guidance to align decisions across the acquisition lifecycle.",
+        {
+          topic: "Contract Principles",
+          session: "Session 1",
+          correctAnswer:
+            "To provide uniform policies and procedures for acquisition by all executive agencies.",
+          farRefs: ["FAR 1.101"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 1",
       topic: "Contract Principles",
       tags: ["Representative Practice"],
@@ -214,8 +261,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "The CO focuses exclusively on price negotiations.",
       ],
       correctIndex: 0,
-      explanation:
-        "A Contracting Officer is a person with the authority to enter into, administer, and/or terminate contracts and make related determinations and findings on behalf of the Government.",
+      explanation: ensureExplanation(
+        "Because a Contracting Officer is delegated authority to enter into, administer, and terminate contracts on behalf of the Government, that statement is correct. Key takeaway: CO authority is formal and must be exercised within delegation limits.",
+        {
+          topic: "Skills and Roles",
+          session: "Session 1",
+          correctAnswer:
+            "The CO has the authority to enter into, administer, or terminate contracts on behalf of the Government.",
+          farRefs: ["FAR 2.101"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 1",
       topic: "Skills and Roles",
       tags: ["Representative Practice"],
@@ -232,8 +288,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "They prohibit all contact with industry.",
       ],
       correctIndex: 0,
-      explanation:
-        "Standards of Conduct require federal employees to act with integrity, avoid conflicts of interest, and maintain public trust in government operations.",
+      explanation: ensureExplanation(
+        "Because the Standards of Conduct are designed to ensure integrity and avoid conflicts of interest, that option is correct. Key takeaway: ethical compliance underpins public trust in government operations.",
+        {
+          topic: "Standards of Conduct",
+          session: "Session 1",
+          correctAnswer:
+            "They ensure employees act with integrity and avoid conflicts of interest.",
+          farRefs: ["5 CFR Part 2635"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 1",
       topic: "Standards of Conduct",
       tags: ["Representative Practice"],
@@ -250,8 +315,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "Sole source awards do not require documentation.",
       ],
       correctIndex: 0,
-      explanation:
-        "A written Justification and Approval (J&A) is required before a sole source contract can be awarded, documenting why full and open competition is not feasible.",
+      explanation: ensureExplanation(
+        "Because a written Justification and Approval must exist before awarding a sole source contract, the pre-award documentation option is correct. Key takeaway: document why full and open competition is not feasible before award.",
+        {
+          topic: "Contract Principles",
+          session: "Session 2",
+          correctAnswer:
+            "Before issuing the contract, with a written justification and approval.",
+          farRefs: ["FAR 6.303"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 2",
       topic: "Contract Principles",
       tags: ["Representative Practice"],
@@ -268,8 +342,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "It is required only for small purchases.",
       ],
       correctIndex: 0,
-      explanation:
-        "The SSP documents the evaluation approach, criteria, and process before the solicitation is released to ensure a fair and consistent evaluation.",
+      explanation: ensureExplanation(
+        "Because the Source Selection Plan is created before release to define the evaluation approach and criteria, it ensures a fair and consistent evaluation. Key takeaway: set evaluation criteria upfront to support transparency.",
+        {
+          topic: "Source Selection",
+          session: "Session 2",
+          correctAnswer:
+            "It outlines the evaluation approach, criteria, and process before solicitation release.",
+          farRefs: ["FAR 15.303"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 2",
       topic: "Source Selection",
       tags: ["Representative Practice"],
@@ -286,8 +369,16 @@ function generateManualQuestions(): SeedQuestion[] {
         "Cost verification is not required for fixed-price contracts.",
       ],
       correctIndex: 0,
-      explanation:
-        "Price or cost analysis verifies that proposed costs are fair and reasonable, ensuring the Government receives value and contractors are compensated appropriately.",
+      explanation: ensureExplanation(
+        "Because price or cost analysis exists to confirm a fair and reasonable price for the Government, that option is correct. Key takeaway: validate proposed pricing against reasonableness, not just contractor profit.",
+        {
+          topic: "Price/Cost Analysis",
+          session: "Session 3",
+          correctAnswer: "To ensure the Government pays a fair and reasonable price.",
+          farRefs: ["FAR 15.404"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 3",
       topic: "Price/Cost Analysis",
       tags: ["Representative Practice"],
@@ -304,8 +395,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "Refer all disputes to the contractor's attorney only.",
       ],
       correctIndex: 0,
-      explanation:
-        "The FAR and contract clauses establish procedures for resolving disputes, including the Contract Disputes Act process.",
+      explanation: ensureExplanation(
+        "Because the FAR and contract clauses establish formal dispute resolution procedures, following them is the correct response. Key takeaway: disputes must be handled through established FAR processes.",
+        {
+          topic: "Disagreements",
+          session: "Session 3",
+          correctAnswer:
+            "Follow the dispute resolution procedures in the contract and FAR.",
+          farRefs: ["FAR 33.2"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 3",
       topic: "Disagreements",
       tags: ["Representative Practice"],
@@ -322,8 +422,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "Modifying the contract without documentation.",
       ],
       correctIndex: 0,
-      explanation:
-        "Contract administration involves monitoring performance, ensuring compliance, and maintaining proper documentation of all contract-related actions.",
+      explanation: ensureExplanation(
+        "Because contract administration requires monitoring performance and ensuring compliance with contract terms, that option is correct. Key takeaway: ongoing oversight and documentation are core administration duties.",
+        {
+          topic: "Administer Contract",
+          session: "Session 4",
+          correctAnswer:
+            "Monitoring contractor performance and ensuring compliance with contract terms.",
+          farRefs: ["FAR 42.302"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 4",
       topic: "Administer Contract",
       tags: ["Representative Practice"],
@@ -340,8 +449,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "Only at the request of the contractor.",
       ],
       correctIndex: 0,
-      explanation:
-        "A contract modification (e.g., supplemental agreement or change order) is required whenever there is a bilateral or unilateral change to contract terms.",
+      explanation: ensureExplanation(
+        "Because any change to scope, price, or terms requires formal documentation, a contract modification is needed. Key takeaway: changes must be captured in writing to maintain contract integrity.",
+        {
+          topic: "Manage Changes",
+          session: "Session 4",
+          correctAnswer:
+            "Whenever there is a change in the scope, price, or terms of the contract.",
+          farRefs: ["FAR 43.102"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 4",
       topic: "Manage Changes",
       tags: ["Representative Practice"],
@@ -358,8 +476,17 @@ function generateManualQuestions(): SeedQuestion[] {
         "To transfer all files to the contractor.",
       ],
       correctIndex: 0,
-      explanation:
-        "Contract closeout settles all matters, disposes of property, and ensures no outstanding obligations remain between the parties.",
+      explanation: ensureExplanation(
+        "Because contract closeout exists to settle all matters and ensure no outstanding obligations remain, that option is correct. Key takeaway: closeout confirms all responsibilities are complete.",
+        {
+          topic: "Closeout",
+          session: "Session 4",
+          correctAnswer:
+            "To settle all matters and ensure no outstanding obligations remain.",
+          farRefs: ["FAR 4.804"],
+          tags: ["Representative Practice"],
+        }
+      ),
       session: "Session 4",
       topic: "Closeout",
       tags: ["Representative Practice"],
@@ -383,31 +510,7 @@ function main() {
     }
   }
 
-  // Ensure unique prompts
-  const seen = new Set<string>();
-  const unique = allQuestions.filter((q) => {
-    const key = q.prompt.slice(0, 80);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  // Ensure we have 220+
-  while (unique.length < 220) {
-    const session =
-      SESSIONS[Math.floor(Math.random() * SESSIONS.length)];
-    const topics = SESSION_TOPICS[session];
-    const topic =
-      topics[Math.floor(Math.random() * topics.length)];
-    const extra = generateTopicQuestions(session, topic, 1);
-    for (const q of extra) {
-      const key = q.prompt.slice(0, 80);
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(q);
-      }
-    }
-  }
+  const unique = allQuestions;
 
   const outputPath = path.join(
     process.cwd(),

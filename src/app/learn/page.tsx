@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { QuestionCard } from "@/components/QuestionCard";
 import {
@@ -10,6 +10,7 @@ import {
   recordAnswer,
   type Question,
 } from "@/lib/questions";
+import { presentQuestion } from "@/lib/presentedQuestion";
 import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 function LearnContent() {
@@ -48,15 +49,26 @@ function LearnContent() {
     setBookmarked(new Set(getBookmarks()));
   }, []);
 
-  const current = queue[index];
+  const presentedQueue = useMemo(
+    () => queue.map((q) => presentQuestion(q, { shuffleChoices: shuffle })),
+    [queue, shuffle]
+  );
+  const current = presentedQueue[index];
 
   const handleAnswer = useCallback(
     async (questionId: string, selectedIndex: number) => {
-      const q = queue.find((x) => x.id === questionId);
+      const q = presentedQueue.find((x) => x.id === questionId);
       if (!q) return;
-      recordAnswer(questionId, q.correctIndex, selectedIndex, weakMode ? "weak-area" : "learn", q.session, q.topic);
+      recordAnswer(
+        questionId,
+        q.presentedCorrectIndex,
+        selectedIndex,
+        weakMode ? "weak-area" : "learn",
+        q.session,
+        q.topic
+      );
     },
-    [queue, weakMode]
+    [presentedQueue, weakMode]
   );
 
   const handleNext = useCallback(() => {
@@ -106,13 +118,7 @@ function LearnContent() {
       </p>
       <QuestionCard
         key={current.id}
-        id={current.id}
-        prompt={current.prompt}
-        choices={current.choices}
-        correctIndex={current.correctIndex}
-        explanation={current.explanation}
-        session={current.session}
-        topic={current.topic}
+        question={current}
         onAnswer={handleAnswer}
         onNext={handleNext}
         onBookmark={handleBookmark}

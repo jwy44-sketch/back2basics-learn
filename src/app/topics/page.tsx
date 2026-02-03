@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { QuestionCard } from "@/components/QuestionCard";
 import {
   fetchQuestions,
@@ -8,6 +8,7 @@ import {
   recordAnswer,
   type Question,
 } from "@/lib/questions";
+import { presentQuestion } from "@/lib/presentedQuestion";
 import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 const SESSIONS = ["Session 1", "Session 2", "Session 3", "Session 4"];
@@ -42,7 +43,11 @@ export default function TopicsPage() {
     setBookmarked(new Set(getBookmarks()));
   }, []);
 
-  const current = queue[index];
+  const presentedQueue = useMemo(
+    () => queue.map((q) => presentQuestion(q, { shuffleChoices: shuffle })),
+    [queue, shuffle]
+  );
+  const current = presentedQueue[index];
 
   const doSearch = useCallback(() => {
     const q = buildTopicsQueue(questions, session, topic, difficulty, search, shuffle);
@@ -53,11 +58,11 @@ export default function TopicsPage() {
 
   const handleAnswer = useCallback(
     async (questionId: string, selectedIndex: number) => {
-      const q = queue.find((x) => x.id === questionId);
+      const q = presentedQueue.find((x) => x.id === questionId);
       if (!q) return;
-      recordAnswer(questionId, q.correctIndex, selectedIndex, "topic", q.session, q.topic);
+      recordAnswer(questionId, q.presentedCorrectIndex, selectedIndex, "topic", q.session, q.topic);
     },
-    [queue]
+    [presentedQueue]
   );
 
   const handleNext = useCallback(() => {
@@ -154,13 +159,7 @@ export default function TopicsPage() {
               <p className="text-slate-500">{index + 1} / {queue.length}</p>
               <QuestionCard
                 key={current.id}
-                id={current.id}
-                prompt={current.prompt}
-                choices={current.choices}
-                correctIndex={current.correctIndex}
-                explanation={current.explanation}
-                session={current.session}
-                topic={current.topic}
+                question={current}
                 onAnswer={handleAnswer}
                 onNext={handleNext}
                 onBookmark={handleBookmark}

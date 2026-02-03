@@ -14,7 +14,8 @@
     "db:setup": "prisma migrate dev && tsx prisma/seed.ts",
     "generate:seed": "tsx scripts/generateSeed.ts",
     "verify:seed": "tsx scripts/verifySeed.ts",
-    "build:public": "node scripts/buildPublicJson.js"
+    "build:public": "node scripts/buildPublicJson.js",
+    "test:questions": "tsx scripts/testQuestions.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

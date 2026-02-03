@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { QuestionCard } from "@/components/QuestionCard";
 import {
   fetchQuestions,
@@ -8,6 +8,7 @@ import {
   recordAnswer,
   type Question,
 } from "@/lib/questions";
+import { presentQuestion } from "@/lib/presentedQuestion";
 import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 export default function BookmarksPage() {
@@ -39,15 +40,19 @@ export default function BookmarksPage() {
     return () => window.removeEventListener("storage", check);
   }, [refreshQueue]);
 
-  const current = queue[index];
+  const presentedQueue = useMemo(
+    () => queue.map((q) => presentQuestion(q, { shuffleChoices: shuffle })),
+    [queue, shuffle]
+  );
+  const current = presentedQueue[index];
 
   const handleAnswer = useCallback(
     async (questionId: string, selectedIndex: number) => {
-      const q = queue.find((x) => x.id === questionId);
+      const q = presentedQueue.find((x) => x.id === questionId);
       if (!q) return;
-      recordAnswer(questionId, q.correctIndex, selectedIndex, "topic", q.session, q.topic);
+      recordAnswer(questionId, q.presentedCorrectIndex, selectedIndex, "topic", q.session, q.topic);
     },
-    [queue]
+    [presentedQueue]
   );
 
   const handleNext = useCallback(() => {
@@ -83,13 +88,7 @@ export default function BookmarksPage() {
       <p className="text-slate-500">{index + 1} / {queue.length} (Bookmarks)</p>
       <QuestionCard
         key={current.id}
-        id={current.id}
-        prompt={current.prompt}
-        choices={current.choices}
-        correctIndex={current.correctIndex}
-        explanation={current.explanation}
-        session={current.session}
-        topic={current.topic}
+        question={current}
         onAnswer={handleAnswer}
         onNext={handleNext}
         onBookmark={handleBookmark}
