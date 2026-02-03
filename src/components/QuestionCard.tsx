@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import type { PresentedQuestion } from "@/lib/presentedQuestion";
 import { buildContrastStatements, buildEnhancedExplanation } from "@/lib/explanations";
@@ -13,6 +14,33 @@ interface QuestionCardProps {
   isBookmarked?: boolean;
   mode?: string;
   showBookmark?: boolean;
+}
+
+interface LearnQuestionCardProps {
+  question: PresentedQuestion;
+  batchIndex: number;
+  batchSize: number;
+  streak: number;
+  answered: boolean;
+  selectedIndex: number | null;
+  wasCorrect: boolean | null;
+  onSelect: (selectedIndex: number) => void;
+  onDontKnow: () => void;
+  onNext: () => void;
+  onBookmark?: (questionId: string) => void;
+  isBookmarked?: boolean;
+}
+
+function buildLearnFallbackExplanation(question: PresentedQuestion) {
+  const correctAnswer = question.presentedChoices[question.presentedCorrectIndex];
+  const promptSnippet = question.prompt.length > 120
+    ? `${question.prompt.slice(0, 120)}…`
+    : question.prompt;
+  return {
+    definition: `Definition: "${correctAnswer}" is the option that directly answers the prompt.`,
+    keyIdea: `Key idea: Focus on the requirement or action described in "${promptSnippet}".`,
+    example: `Example: If asked about "${question.topic}", pick the option that best matches the prompt’s stated focus.`,
+  };
 }
 
 export function QuestionCard({
@@ -192,5 +220,138 @@ export function QuestionCard({
         </div>
       )}
     </div>
+  );
+}
+
+export function LearnQuestionCard({
+  question,
+  batchIndex,
+  batchSize,
+  streak,
+  answered,
+  selectedIndex,
+  wasCorrect,
+  onSelect,
+  onDontKnow,
+  onNext,
+  onBookmark,
+  isBookmarked,
+}: LearnQuestionCardProps) {
+  const reduceMotion = useReducedMotion();
+  const correctAnswer = question.presentedChoices[question.presentedCorrectIndex];
+  const normalizedExplanation = question.explanation?.trim() ?? "";
+  const explanationIsGeneric =
+    !normalizedExplanation ||
+    normalizedExplanation.length < 60 ||
+    normalizedExplanation.toLowerCase() === correctAnswer.toLowerCase();
+  const fallback = buildLearnFallbackExplanation(question);
+
+  return (
+    <motion.div
+      layout
+      className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto relative overflow-hidden"
+      animate={
+        answered
+          ? wasCorrect
+            ? {
+                scale: reduceMotion ? 1 : 1.02,
+                boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
+              }
+            : {
+                x: reduceMotion ? 0 : [0, -6, 6, -4, 4, 0],
+                boxShadow: "0 0 0 3px rgba(239,68,68,0.3)",
+              }
+          : { scale: 1, x: 0, boxShadow: "0 0 0 0 rgba(0,0,0,0)" }
+      }
+      transition={{ duration: reduceMotion ? 0.1 : 0.28 }}
+    >
+      <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
+        <span>
+          Question {batchIndex + 1} of {batchSize}
+        </span>
+        <div className="flex items-center gap-3">
+          <span>Streak: 🔥{streak}</span>
+          {onBookmark && (
+            <button
+              onClick={() => onBookmark(question.id)}
+              className="text-lg hover:scale-110 transition"
+              aria-label={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+            >
+              {isBookmarked ? "⭐" : "☆"}
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="text-lg font-medium mb-6">{question.prompt}</p>
+      <div className="space-y-3">
+        {question.presentedChoices.map((choice, idx) => {
+          let bg = "bg-slate-50 hover:bg-slate-100";
+          if (answered) {
+            if (idx === question.presentedCorrectIndex) bg = "bg-green-100 border-green-500";
+            else if (idx === selectedIndex && selectedIndex !== question.presentedCorrectIndex)
+              bg = "bg-red-100 border-red-500";
+          }
+          return (
+            <button
+              key={idx}
+              onClick={() => onSelect(idx)}
+              disabled={answered}
+              className={`w-full text-left p-4 rounded-lg border-2 transition ${bg} ${
+                answered ? "cursor-default" : "cursor-pointer"
+              }`}
+            >
+              <span className="font-medium mr-2">{String.fromCharCode(65 + idx)}.</span>
+              {choice}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-4 flex items-center justify-between">
+        <button
+          onClick={onDontKnow}
+          disabled={answered}
+          className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-60"
+        >
+          I don’t know
+        </button>
+        <span className="text-xs text-slate-400">Shortcuts: 1-4, I, Enter, N</span>
+      </div>
+
+      <AnimatePresence>
+        {answered && (
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.28 }}
+            className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 sticky bottom-0"
+          >
+            <p className="font-semibold text-slate-700 mb-2">
+              {wasCorrect ? "✅ Correct" : "❌ Incorrect"}
+            </p>
+            <p className="text-sm text-slate-600 mb-3">
+              Correct answer: <span className="font-medium text-slate-700">{correctAnswer}</span>
+            </p>
+            <div className="text-sm text-slate-600 space-y-2">
+              {explanationIsGeneric ? (
+                <>
+                  <p>{fallback.definition}</p>
+                  <p>{fallback.keyIdea}</p>
+                  <p>{fallback.example}</p>
+                </>
+              ) : (
+                <p>{normalizedExplanation}</p>
+              )}
+            </div>
+            <button
+              onClick={onNext}
+              className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Next
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
