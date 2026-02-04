@@ -9,15 +9,20 @@ import {
 import { shuffle } from "./shuffle";
 import { getProgress, setProgress, getBookmarks, addAttempt } from "./storage";
 
+export type ChoiceIndex = 0 | 1 | 2 | 3;
+
 export interface Question {
   id: string;
   prompt: string;
-  choices: string[];
-  correctIndex: number;
+  choices: [string, string, string, string];
+  correctIndex: ChoiceIndex;
   explanation: string;
   session: string;
   topic: string;
+  tags?: string[];
+  farRefs?: string[];
   difficulty?: number;
+  source?: string;
 }
 
 const INITIAL_PROFICIENCY = getInitialProficiency();
@@ -28,8 +33,17 @@ export async function fetchQuestions(): Promise<Question[]> {
   const raw = await res.json();
   return raw.map((q: { choices?: string[] | string }) => ({
     ...q,
-    choices: Array.isArray(q.choices) ? q.choices : JSON.parse(q.choices || "[]"),
+    choices: (Array.isArray(q.choices) ? q.choices : JSON.parse(q.choices || "[]")) as [
+      string,
+      string,
+      string,
+      string,
+    ],
   }));
+}
+
+export async function getAllQuestions(): Promise<Question[]> {
+  return fetchQuestions();
 }
 
 export async function fetchResources(): Promise<{ id: string; title: string; url: string; category: string }[]> {
@@ -56,7 +70,7 @@ function getOrCreateProgress(questionId: string) {
 
 export function recordAnswer(
   questionId: string,
-  correctIndex: number,
+  correctIndex: ChoiceIndex,
   selectedIndex: number,
   mode: string,
   session: string,

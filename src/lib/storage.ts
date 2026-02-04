@@ -8,6 +8,7 @@
 const PROGRESS_KEY = "b2b_progress_v1";
 const BOOKMARKS_KEY = "b2b_bookmarks_v1";
 const ATTEMPTS_KEY = "b2b_attempts_v1";
+const FLAGGED_KEY = "b2b_flagged_v1";
 
 export interface ProgressEntry {
   proficiency: number;
@@ -23,6 +24,13 @@ export interface AttemptEntry {
   session: string;
   wasCorrect: boolean;
   at: string;
+}
+
+export interface FlaggedQuestionEntry {
+  questionId: string;
+  reason: string;
+  at?: string;
+  createdAt?: string;
 }
 
 function safeJsonParse<T>(key: string, fallback: T): T {
@@ -94,4 +102,41 @@ export function resetProgress(): void {
   localStorage.removeItem(PROGRESS_KEY);
   localStorage.removeItem(BOOKMARKS_KEY);
   localStorage.removeItem(ATTEMPTS_KEY);
+}
+
+export function getFlaggedQuestions(): FlaggedQuestionEntry[] {
+  return safeJsonParse<FlaggedQuestionEntry[]>(FLAGGED_KEY, []);
+}
+
+export function flagQuestion(questionId: string, reason: string): void {
+  const flagged = getFlaggedQuestions();
+  const existing = flagged.find((entry) => entry.questionId === questionId);
+  const timestamp = new Date().toISOString();
+  if (existing) {
+    existing.reason = reason;
+    existing.at = timestamp;
+    existing.createdAt = existing.createdAt ?? timestamp;
+  } else {
+    flagged.push({ questionId, reason, at: timestamp, createdAt: timestamp });
+  }
+  safeJsonSet(FLAGGED_KEY, flagged);
+}
+
+export function flagConfusingQuestion(questionId: string): void {
+  const flagged = getFlaggedQuestions();
+  const existing = flagged.find((entry) => entry.questionId === questionId);
+  const timestamp = new Date().toISOString();
+  if (existing) {
+    existing.reason = "confusing";
+    existing.createdAt = existing.createdAt ?? timestamp;
+    existing.at = timestamp;
+  } else {
+    flagged.push({ questionId, reason: "confusing", createdAt: timestamp });
+  }
+  safeJsonSet(FLAGGED_KEY, flagged);
+}
+
+export function clearFlaggedQuestions(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(FLAGGED_KEY);
 }
