@@ -18,6 +18,8 @@ const PRESETS = [
 ];
 const COUNTS = [10, 25, 50];
 
+export const dynamic = "force-dynamic";
+
 export default function ExamPage() {
   const searchParams = useSearchParams();
   const [count, setCount] = useState(25);
