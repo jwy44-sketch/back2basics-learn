@@ -1,5 +1,8 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { QuestionCard } from "@/components/QuestionCard";
 import { fetchQuestions, buildExamQueue, recordAnswer, type Question } from "@/lib/questions";
@@ -19,10 +22,7 @@ export default function ExamPage() {
   const [count, setCount] = useState(25);
   const [preset, setPreset] = useState("All Sessions Mixed");
   const [timerEnabled, setTimerEnabled] = useState(false);
-  const [shuffleChoices] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem("shuffleChoices") !== "false";
-  });
+  const [shuffleChoices, setShuffleChoices] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [queue, setQueue] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
@@ -34,6 +34,11 @@ export default function ExamPage() {
 
   useEffect(() => {
     fetchQuestions().then(setQuestions).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setShuffleChoices(localStorage.getItem("shuffleChoices") !== "false");
   }, []);
 
   const presentedQueue = useMemo(
