@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import type { PresentedQuestion } from "@/lib/presentedQuestion";
 import { buildContrastStatements, buildEnhancedExplanation } from "@/lib/explanations";
@@ -237,7 +236,6 @@ export function LearnQuestionCard({
   onBookmark,
   isBookmarked,
 }: LearnQuestionCardProps) {
-  const reduceMotion = useReducedMotion();
   const correctAnswer = question.presentedChoices[question.presentedCorrectIndex];
   const normalizedExplanation = question.explanation?.trim() ?? "";
   const explanationIsGeneric =
@@ -247,23 +245,10 @@ export function LearnQuestionCard({
   const fallback = buildLearnFallbackExplanation(question);
 
   return (
-    <motion.div
-      layout
-      className="bg-white rounded-lg shadow p-6 max-w-2xl mx-auto relative overflow-hidden"
-      animate={
-        answered
-          ? wasCorrect
-            ? {
-                scale: reduceMotion ? 1 : 1.02,
-                boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
-              }
-            : {
-                x: reduceMotion ? 0 : [0, -6, 6, -4, 4, 0],
-                boxShadow: "0 0 0 3px rgba(239,68,68,0.3)",
-              }
-          : { scale: 1, x: 0, boxShadow: "0 0 0 0 rgba(0,0,0,0)" }
-      }
-      transition={{ duration: reduceMotion ? 0.1 : 0.28 }}
+    <div
+      className={`bg-white rounded-lg shadow p-6 max-w-2xl mx-auto relative overflow-hidden transition ${
+        answered ? (wasCorrect ? "animate-pulse-success" : "animate-shake-error") : ""
+      }`}
     >
       <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
         <span>
@@ -317,15 +302,8 @@ export function LearnQuestionCard({
         <span className="text-xs text-slate-400">Shortcuts: 1-4, I, Enter, N</span>
       </div>
 
-      <AnimatePresence>
-        {answered && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
-            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.28 }}
-            className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 sticky bottom-0"
-          >
+      {answered && (
+        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 sticky bottom-0 animate-slide-up">
             <p className="font-semibold text-slate-700 mb-2">
               {wasCorrect ? "✅ Correct" : "❌ Incorrect"}
             </p>
@@ -349,9 +327,8 @@ export function LearnQuestionCard({
             >
               Next
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+        </div>
+      )}
+    </div>
   );
 }

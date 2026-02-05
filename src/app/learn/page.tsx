@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { LearnQuestionCard } from "@/components/QuestionCard";
@@ -37,7 +36,6 @@ function LearnContent() {
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null);
   const { bookmarks, toggleBookmark } = useBookmarks();
   const [learnState, setLearnState] = useState<LearnState>("LOADING");
-  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     let cancelled = false;
@@ -210,11 +208,9 @@ function LearnContent() {
           <span>Streak: 🔥{correctStreak}</span>
         </div>
         <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-          <motion.div
-            className="h-full bg-primary-500"
-            initial={false}
-            animate={{ width: `${batchQuestions.length ? ((batchIndex + (learnState === "FEEDBACK" ? 1 : 0)) / batchQuestions.length) * 100 : 0}%` }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.3 }}
+          <div
+            className="h-full bg-primary-500 transition-all duration-300"
+            style={{ width: `${batchQuestions.length ? ((batchIndex + (learnState === "FEEDBACK" ? 1 : 0)) / batchQuestions.length) * 100 : 0}%` }}
           />
         </div>
         <div className="mt-2 text-xs text-slate-500">
@@ -270,30 +266,25 @@ function LearnContent() {
           </div>
         </div>
       ) : current ? (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={current.id}
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 40 }}
-            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -40 }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.25 }}
-          >
-            <LearnQuestionCard
-              question={current}
-              batchIndex={batchIndex}
-              batchSize={batchQuestions.length || BATCH_SIZE}
-              streak={correctStreak}
-              answered={learnState === "FEEDBACK"}
-              selectedIndex={selectedIndex}
-              wasCorrect={wasCorrect}
-              onSelect={handleAnswer}
-              onDontKnow={handleDontKnow}
-              onNext={handleNext}
-              onBookmark={handleBookmark}
-              isBookmarked={bookmarks.has(current.id)}
-            />
-          </motion.div>
-        </AnimatePresence>
+        <div
+          key={`${current.id}-${batchIndex}`}
+          className="transition-all duration-300 animate-slide-in"
+        >
+          <LearnQuestionCard
+            question={current}
+            batchIndex={batchIndex}
+            batchSize={batchQuestions.length || BATCH_SIZE}
+            streak={correctStreak}
+            answered={learnState === "FEEDBACK"}
+            selectedIndex={selectedIndex}
+            wasCorrect={wasCorrect}
+            onSelect={handleAnswer}
+            onDontKnow={handleDontKnow}
+            onNext={handleNext}
+            onBookmark={handleBookmark}
+            isBookmarked={bookmarks.has(current.id)}
+          />
+        </div>
       ) : null}
     </div>
   );
