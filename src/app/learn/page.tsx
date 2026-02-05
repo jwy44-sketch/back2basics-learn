@@ -11,7 +11,7 @@ import {
   type Question,
 } from "@/lib/questions";
 import { presentQuestion, type PresentedQuestion } from "@/lib/presentedQuestion";
-import { useBookmarks } from "@/lib/useBookmarks";
+import { toggleBookmark, getBookmarks } from "@/lib/storage";
 
 const BATCH_SIZE = 10;
 type LearnState = "LOADING" | "IN_BATCH" | "FEEDBACK" | "BATCH_SUMMARY" | "SESSION_COMPLETE";
@@ -34,7 +34,7 @@ function LearnContent() {
   const [correctStreak, setCorrectStreak] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null);
-  const { bookmarks, toggleBookmark } = useBookmarks();
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const [learnState, setLearnState] = useState<LearnState>("LOADING");
 
   useEffect(() => {
@@ -58,6 +58,10 @@ function LearnContent() {
       cancelled = true;
     };
   }, [weakMode, shuffle]);
+
+  useEffect(() => {
+    setBookmarked(new Set(getBookmarks()));
+  }, []);
 
   const startBatch = useCallback((sourceQueue: Question[]) => {
     const slice = sourceQueue.slice(0, BATCH_SIZE);
@@ -150,8 +154,14 @@ function LearnContent() {
   }, [batchIndex, batchQuestions.length]);
 
   const handleBookmark = useCallback((questionId: string) => {
-    toggleBookmark(questionId);
-  }, [toggleBookmark]);
+    const isNow = toggleBookmark(questionId);
+    setBookmarked((prev) => {
+      const next = new Set(prev);
+      if (isNow) next.add(questionId);
+      else next.delete(questionId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (learnState === "LOADING") return;
@@ -282,7 +292,7 @@ function LearnContent() {
             onDontKnow={handleDontKnow}
             onNext={handleNext}
             onBookmark={handleBookmark}
-            isBookmarked={bookmarks.has(current.id)}
+            isBookmarked={bookmarked.has(current.id)}
           />
         </div>
       ) : null}

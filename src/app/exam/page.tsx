@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { QuestionCard } from "@/components/QuestionCard";
 import { getAllQuestions, buildExamQueue, recordAnswer, type Question } from "@/lib/questions";
 import { checkAnswer, presentQuestion } from "@/lib/presentedQuestion";
-import { useBookmarks } from "@/lib/useBookmarks";
 
 const PRESETS = [
   "All Sessions Mixed",
@@ -14,7 +13,6 @@ const PRESETS = [
   "Session 3 Only",
   "Session 4 Only",
   "Weak Areas Only",
-  "Bookmarked Only",
 ];
 const COUNTS = [10, 25, 50];
 
@@ -37,20 +35,13 @@ export default function ExamPage() {
     { questionId: string; topic: string; session: string; wasCorrect: boolean }[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const [bookmarksOnly, setBookmarksOnly] = useState(false);
-  const { bookmarks, toggleBookmark } = useBookmarks();
 
   useEffect(() => {
     getAllQuestions().then(setQuestions).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const param = searchParams.get("bookmarks");
     const countParam = searchParams.get("count");
-    if (param === "1") {
-      setBookmarksOnly(true);
-      setPreset("Bookmarked Only");
-    }
     if (countParam) {
       const parsed = Number(countParam);
       if (!Number.isNaN(parsed)) setCount(parsed);
@@ -64,16 +55,12 @@ export default function ExamPage() {
   const current = (phase === "exam" || phase === "review") ? presentedQueue[index] : undefined;
 
   const startExam = useCallback(() => {
-    let base = questions;
-    if (bookmarksOnly) {
-      base = questions.filter((q) => bookmarks.has(q.id));
-    }
-    const q = buildExamQueue(base, count, preset);
+    const q = buildExamQueue(questions, count, preset);
     setQueue(q);
     setIndex(0);
     setAttempts([]);
     setPhase("exam");
-  }, [questions, count, preset, bookmarksOnly, bookmarks]);
+  }, [questions, count, preset]);
 
   const handleAnswer = useCallback(
     async (questionId: string, selectedIndex: number) => {
@@ -289,9 +276,7 @@ export default function ExamPage() {
         question={current}
         onAnswer={handleAnswer}
         onNext={handleNext}
-        showBookmark={true}
-        onBookmark={toggleBookmark}
-        isBookmarked={bookmarks.has(current.id)}
+        showBookmark={false}
         mode={phase === "review" ? "exam-review" : "exam"}
       />
     </div>
